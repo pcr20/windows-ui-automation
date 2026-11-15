@@ -1,0 +1,10 @@
+{
+ "mailstore": {
+  "root": "C:\\Users\\pcr20\\OneDrive\\Apps\\Mailstore",
+  "launch": "MailStoreHomePortable.exe"
+ },
+ "mailstore-lup": {
+  "root": "C:\\Users\\pcr20\\OneDrive\\Apps\\MailstoreLup",
+  "launch": "MailStoreHomePortable.exe"
+ }
+}
