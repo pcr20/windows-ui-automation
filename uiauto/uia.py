@@ -10,8 +10,8 @@ from . import selector
 PATTERNS = ["Invoke", "Value", "SelectionItem", "ExpandCollapse", "Toggle", "Selection", "Scroll",
             "ScrollItem", "Grid", "GridItem", "Table", "Text", "RangeValue", "Window", "Transform",
             "LegacyIAccessible"]
-# Patterns that let an agent *do* something to an element.
-ACTION_PATTERNS = {"Invoke", "Value", "SelectionItem", "ExpandCollapse", "Toggle", "LegacyIAccessible"}
+# Patterns that let an agent *do* something. LegacyIAccessible is excluded: WinForms reports it on every element.
+ACTION_PATTERNS = {"Invoke", "Value", "SelectionItem", "ExpandCollapse", "Toggle"}
 EXPAND_STATES = {0: "collapsed", 1: "expanded", 2: "partial", 3: "leaf"}
 
 
