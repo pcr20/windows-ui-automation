@@ -55,6 +55,7 @@ if WIN:
     _sig(user32.ShowWindow, [H, I])
     _sig(user32.SetWindowPos, [H, H, I, I, I, I, U])
     _sig(user32.GetSystemMetrics, [I], I)
+    _sig(user32.PostMessageW, [H, U, wintypes.WPARAM, wintypes.LPARAM])
     _sig(gdi32.CreateCompatibleDC, [wintypes.HDC], wintypes.HDC)
     _sig(gdi32.CreateCompatibleBitmap, [wintypes.HDC, I, I], wintypes.HBITMAP)
     _sig(gdi32.SelectObject, [wintypes.HDC, wintypes.HGDIOBJ], wintypes.HGDIOBJ)
@@ -160,6 +161,11 @@ def show_noactivate(hwnd: int) -> None:
 
 def move(hwnd: int, x: int, y: int) -> None:
     user32.SetWindowPos(hwnd, None, x, y, 0, 0, SWP_NOSIZE | SWP_NOZORDER | SWP_NOACTIVATE)
+
+
+def close_window(hwnd: int) -> None:
+    """Ask a window to close (WM_CLOSE); returns immediately."""
+    user32.PostMessageW(hwnd, 0x0010, 0, 0)
 
 
 def park(hwnd: int) -> None:

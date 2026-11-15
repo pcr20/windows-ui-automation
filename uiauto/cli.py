@@ -62,6 +62,12 @@ def cmd_launch(args):
     emit([w.as_dict() for w in wins])
 
 
+def cmd_close(args):
+    from .feasibility import close
+
+    emit({"closed": close(load_profiles(args.profiles)[args.profile])})
+
+
 def cmd_tree(args):
     win = resolve(args)
     u = UIA()
@@ -133,7 +139,7 @@ def cmd_feasibility(args):
     for name in names:
         if name not in profiles:
             sys.exit(f"unknown profile {name!r}; known: {', '.join(profiles)}")
-        code |= Run(name, profiles[name], args.out).execute(not args.no_launch, not args.no_probe, args.depth)
+        code |= Run(name, profiles[name], args.out).execute(not args.no_launch, not args.no_probe, args.depth, args.keep_open)
     sys.exit(code)
 
 
@@ -153,8 +159,9 @@ def main(argv=None):
 
     sub.add_parser("profiles").set_defaults(fn=cmd_profiles)
     sp = sub.add_parser("windows"); sp.add_argument("--profile"); sp.set_defaults(fn=cmd_windows)
-    sp = sub.add_parser("launch"); sp.add_argument("profile"); sp.add_argument("--timeout", type=float, default=90)
+    sp = sub.add_parser("launch"); sp.add_argument("profile"); sp.add_argument("--timeout", type=float, default=180)
     sp.set_defaults(fn=cmd_launch)
+    sp = sub.add_parser("close"); sp.add_argument("profile"); sp.set_defaults(fn=cmd_close)
     sp = sub.add_parser("tree"); target(sp); sp.add_argument("--json", action="store_true")
     sp.add_argument("--max-nodes", type=int, default=3000); sp.set_defaults(fn=cmd_tree)
     sp = sub.add_parser("shot"); target(sp, depth=False); sp.add_argument("out"); sp.set_defaults(fn=cmd_shot)
@@ -165,6 +172,7 @@ def main(argv=None):
     sp = sub.add_parser("feasibility"); sp.add_argument("profile", help="profile name, or 'all'")
     sp.add_argument("--out", default=os.path.join(HERE, "out")); sp.add_argument("--depth", type=int, default=12)
     sp.add_argument("--no-launch", action="store_true"); sp.add_argument("--no-probe", action="store_true")
+    sp.add_argument("--keep-open", action="store_true", help="do not close an application the test started")
     sp.set_defaults(fn=cmd_feasibility)
 
     args = p.parse_args(argv)

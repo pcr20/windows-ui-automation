@@ -17,20 +17,53 @@ from . import win32
 from .uia import ACTION_PATTERNS, UIA, format_node
 
 
-def launch(profile: dict, timeout: float = 90) -> list:
-    """Start the profile's application without activating it; wait for a window."""
+def is_transient(u: UIA, win, profile: dict) -> bool:
+    """Splash screens and progress dialogs: listed in the profile, or a small window with a progress bar."""
+    try:
+        root = u.from_hwnd(win.hwnd)
+        if (root.CurrentAutomationId or "") in profile.get("transient", []):
+            return True
+        kids = u.children(root)
+        return len(kids) < 8 and any(u.type_names.get(k.CurrentControlType) == "ProgressBar" for k in kids)
+    except Exception:
+        return True
+
+
+def wait_ready(profile: dict, timeout: float = 180, settle: float = 5) -> list:
+    """Wait until the main window is not a transient one and has been the same window for `settle` seconds."""
+    u = UIA()
+    deadline, last, since = time.time() + timeout, None, time.time()
+    while time.time() < deadline:
+        wins = win32.windows_under(profile["root"])
+        key = wins[0].hwnd if wins and not is_transient(u, wins[0], profile) else None
+        if key != last:
+            last, since = key, time.time()
+        elif key and time.time() - since >= settle:
+            return wins
+        time.sleep(1)
+    return []
+
+
+def launch(profile: dict, timeout: float = 180) -> list:
+    """Start the profile's application without activating it; wait for its main window."""
     si = subprocess.STARTUPINFO()
     si.dwFlags |= subprocess.STARTF_USESHOWWINDOW
     si.wShowWindow = win32.SW_SHOWNOACTIVATE
     subprocess.Popen([os.path.join(profile["root"], profile["launch"])], cwd=profile["root"], startupinfo=si)
+    return wait_ready(profile, timeout)
+
+
+def close(profile: dict, timeout: float = 60) -> bool:
+    """Ask every top-level window of the profile to close; True once they are all gone."""
     deadline = time.time() + timeout
     while time.time() < deadline:
         wins = win32.windows_under(profile["root"])
-        if wins:
-            time.sleep(3)  # let the UI finish building
-            return win32.windows_under(profile["root"])
-        time.sleep(1)
-    return []
+        if not wins:
+            return True
+        for w in wins:
+            win32.close_window(w.hwnd)
+        time.sleep(2)
+    return False
 
 
 class Run:
@@ -61,18 +94,31 @@ class Run:
             self.cursor_moved.append(label)
         return result
 
-    def execute(self, do_launch: bool = True, probe: bool = True, depth: int = 12) -> int:
+    def execute(self, do_launch: bool = True, probe: bool = True, depth: int = 12, keep_open: bool = False) -> int:
+        launched_before = bool(win32.windows_under(self.profile["root"]))
+        try:
+            return self._execute(do_launch, probe, depth)
+        finally:
+            if not launched_before and not keep_open and win32.windows_under(self.profile["root"]):
+                print("  closing the application (it was started by the test)" if close(self.profile)
+                      else "  WARNING: the application did not close")
+
+    def _execute(self, do_launch: bool, probe: bool, depth: int) -> int:
         win32.set_dpi_aware()
         root = self.profile["root"]
         self.stolen, self.cursor_moved = [], []
         print(f"Feasibility test: {self.name} ({root})")
 
-        wins = win32.windows_under(root)
-        if not wins and do_launch:
+        if win32.windows_under(root):
+            wins = wait_ready(self.profile, timeout=60)
+        elif do_launch:
             wins = self.guarded("launch", lambda: launch(self.profile))
-            self.notes.append("Application was launched by the test.")
+            self.notes.append("Application was launched by the test and closed afterwards unless --keep-open.")
+        else:
+            wins = []
         if not wins:
-            self.check("Window found", "FAIL", "no visible window for this profile (not running, or launch timed out)")
+            self.check("Window found", "FAIL", "no settled main window (not running, still starting after the "
+                       "timeout, or another instance blocked the launch)")
             return self.finish()
         main = wins[0]
         self.check("Window found", "PASS", f"{len(wins)} window(s); main = {main.title!r} {hex(main.hwnd)}")
@@ -123,9 +169,13 @@ class Run:
             self.check("Action probes", "SKIP", "--no-probe")
 
         # 4. focus and cursor -----------------------------------------------
-        self.check("Focus kept", "FAIL" if self.stolen else "PASS",
-                   "focus moved to the application during: " + ", ".join(self.stolen) if self.stolen
-                   else "the application never took the foreground")
+        if "launch" in self.stolen:
+            self.check("Focus on launch", "WARN", "the application took the foreground while starting; "
+                       "start it once and leave it running (parked) to avoid this")
+        acted = [s for s in self.stolen if s != "launch"]
+        self.check("Focus kept", "FAIL" if acted else "PASS",
+                   "focus moved to the application during: " + ", ".join(acted) if acted
+                   else "no action gave the application the foreground")
         self.check("Cursor untouched", "WARN" if self.cursor_moved else "PASS",
                    "cursor moved during: " + ", ".join(self.cursor_moved) + " (ignore if you were using the mouse)"
                    if self.cursor_moved else "cursor position unchanged")

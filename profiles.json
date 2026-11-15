@@ -1,10 +1,12 @@
 {
  "mailstore": {
   "root": "C:\\Users\\pcr20\\OneDrive\\Apps\\Mailstore",
-  "launch": "MailStoreHomePortable.exe"
+  "launch": "MailStoreHomePortable.exe",
+  "transient": ["HomeUpgradeProgressDialog"]
  },
  "mailstore-lup": {
   "root": "C:\\Users\\pcr20\\OneDrive\\Apps\\MailstoreLup",
-  "launch": "MailStoreHomePortable.exe"
+  "launch": "MailStoreHomePortable.exe",
+  "transient": ["HomeUpgradeProgressDialog"]
  }
 }

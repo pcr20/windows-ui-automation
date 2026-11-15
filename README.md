@@ -32,6 +32,10 @@ Checks:
 3. **Expand/collapse** and **Select item**: navigation-only probes on tree items, restored afterwards.
 4. **Focus kept / Cursor untouched**: the application never took the foreground and the pointer did not move.
 
+The test waits for the main window to settle (splash and progress dialogs are
+skipped; add their AutomationIds to `transient` in `profiles.json`) and closes
+any application it started itself, unless `--keep-open` is given.
+
 The probes only navigate. Nothing is invoked, typed or deleted. Leave the PC
 alone for the few seconds the probes run, or the cursor check will warn.
 
